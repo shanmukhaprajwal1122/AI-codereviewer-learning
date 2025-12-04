@@ -102,7 +102,7 @@ Your ${language} code has been reviewed. Here are some general observations:
 module.exports.healthCheck = async (req, res) => {
   try {
     // Test AI service with simple code
-    const testResponse = await aiService("console.log('test');", "javascript");
+    const testResponse = await require("../services/ai.services")("console.log('test');", "javascript");
     return res.json({ 
       status: "healthy", 
       aiService: "operational",

@@ -13,6 +13,7 @@
     "@monaco-editor/react": "^4.7.0",
     "axios": "^1.12.2",
     "framer-motion": "^12.23.16",
+    "mermaid": "^11.12.1",
     "prismjs": "^1.30.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

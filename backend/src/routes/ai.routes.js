@@ -1,8 +1,15 @@
-// src/routes/ai.routes.js
-const express = require("express");
-const router  = express.Router();
-const aiController = require("../controllers/ai.controllers");
+const express = require('express');
+const router = express.Router();
+const aiController = require('../controllers/ai.controllers');  // Changed: removed .js and made it plural
+const diagramController = require('../controllers/ai.diagram.controller');
 
-router.post("/get-review", aiController.getResponse);
+// Code review route
+router.post('/get-review', aiController.getResponse);
+
+// Diagram generation route
+router.post('/generate-diagram', diagramController.generateDiagram);
+
+// Health check route (optional)
+// router.get('/health', aiController.healthCheck);
 
 module.exports = router;

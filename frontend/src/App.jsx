@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import Editor from "react-simple-code-editor";
@@ -11,6 +10,7 @@ import "prismjs/components/prism-json";
 import "prismjs/components/prism-java";
 import Markdown from "react-markdown";
 import axios from "axios";
+import mermaid from "mermaid";
 
 /* Panels */
 import Sidebar from "./components/patterns/Sidebar";
@@ -80,13 +80,177 @@ class ErrorBoundary extends React.Component {
   ): this.props.children; }
 }
 
-/* ---------- Main Editor (Top/Bottom layout; no extra buttons in review) ---------- */
+/* ---------- Diagram Generator Component ---------- */
+function DiagramGenerator({ code, language }) {
+  const [diagramType, setDiagramType] = useState("class");
+  const [diagram, setDiagram] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Initialize mermaid
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        primaryColor: '#a78bfa',
+        primaryTextColor: '#e7e7ef',
+        primaryBorderColor: '#8b5cf6',
+        lineColor: '#60a5fa',
+        secondaryColor: '#ec4899',
+        tertiaryColor: '#10b981',
+        background: '#0a0a0f',
+        mainBkg: '#1f2937',
+        secondBkg: '#111827',
+        textColor: '#e7e7ef',
+        fontSize: '14px'
+      }
+    });
+  }, []);
+
+  // Render mermaid diagram
+  useEffect(() => {
+    if (diagram) {
+      const renderDiagram = async () => {
+        try {
+          const element = document.getElementById('mermaid-diagram');
+          if (element) {
+            element.innerHTML = diagram;
+            await mermaid.run({ nodes: [element] });
+          }
+        } catch (err) {
+          console.error("Mermaid render error:", err);
+          setError("Failed to render diagram. The generated syntax may be invalid.");
+        }
+      };
+      renderDiagram();
+    }
+  }, [diagram]);
+
+  const generateDiagram = async () => {
+    if (!code.trim()) {
+      setError("Please provide code to generate a diagram");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setDiagram("");
+
+    try {
+      const response = await axios.post("/ai/generate-diagram/", {
+        code,
+        language,
+        diagramType
+      });
+
+      let diagramCode = response.data.diagram || response.data.response || "";
+      
+      // Clean up the diagram code
+      diagramCode = diagramCode
+        .replace(/```mermaid\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
+
+      if (!diagramCode) {
+        setError("No diagram was generated. Try different code or diagram type.");
+        return;
+      }
+
+      setDiagram(diagramCode);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.response?.data?.error || err.message || "Failed to generate diagram";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-gray-900/80 via-gray-900/90 to-gray-950/95 backdrop-blur-xl shadow-2xl">
+      <div className="p-5 border-b border-purple-500/20">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <div className="text-2xl">📊</div>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">
+              AI Diagram Generator
+            </h2>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <select
+              value={diagramType}
+              onChange={(e) => setDiagramType(e.target.value)}
+              className="bg-gray-800/80 border border-purple-500/30 px-4 py-2 rounded-xl text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+            >
+              <option value="class">Class Diagram</option>
+              <option value="flowchart">Flowchart</option>
+              <option value="sequence">Sequence Diagram</option>
+              <option value="er">ER Diagram</option>
+            </select>
+
+            <button
+              onClick={generateDiagram}
+              disabled={loading || !code.trim()}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:opacity-95 transition shadow-lg disabled:opacity-60 text-sm font-semibold"
+            >
+              {loading ? "Generating..." : "Generate Diagram"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6">
+        {error && (
+          <div className="mb-4 p-4 bg-red-900/20 border border-red-500/40 rounded-xl text-red-200">
+            <div className="font-semibold mb-1">Error</div>
+            <div className="text-sm">{error}</div>
+          </div>
+        )}
+
+        {diagram ? (
+          <div className="space-y-4">
+            <div className="bg-white/5 border border-purple-500/20 rounded-xl p-6 overflow-x-auto">
+              <div id="mermaid-diagram" className="flex justify-center items-center min-h-[300px]">
+                {diagram}
+              </div>
+            </div>
+            
+            <details className="bg-gray-800/40 border border-purple-500/20 rounded-xl">
+              <summary className="px-4 py-3 cursor-pointer hover:bg-gray-800/60 rounded-xl transition font-semibold text-purple-300">
+                View Mermaid Code
+              </summary>
+              <div className="p-4 border-t border-purple-500/20">
+                <pre className="code-font text-xs bg-black/30 p-4 rounded-lg overflow-x-auto text-gray-300">
+                  {diagram}
+                </pre>
+              </div>
+            </details>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-4xl mb-4">📊</div>
+            <div className="text-lg text-gray-400">
+              Select a diagram type and click <span className="text-purple-400 font-semibold">Generate Diagram</span>
+            </div>
+            <div className="text-sm text-gray-500 mt-2">
+              AI will analyze your code structure and create a visual diagram
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Main Editor (with Diagram Generator) ---------- */
 function MainEditor({ user, onLogout }) {
   const [code, setCode] = useState(`def sum(a, b):\n    return a + b\n\nprint(sum(2, 3))`);
   const [review, setReview] = useState("");
   const [language, setLanguage] = useState("python");
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showDiagrams, setShowDiagrams] = useState(false);
 
   useEffect(() => { prism.highlightAll(); }, [code, review]);
 
@@ -273,6 +437,13 @@ function MainEditor({ user, onLogout }) {
                 >
                   {loading ? "Analyzing..." : "Get AI Review"}
                 </button>
+
+                <button
+                  onClick={() => setShowDiagrams(!showDiagrams)}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-95 transition shadow-lg text-sm font-semibold"
+                >
+                  {showDiagrams ? "Hide Diagrams" : "Show Diagrams"}
+                </button>
               </div>
             </div>
           </div>
@@ -290,6 +461,10 @@ function MainEditor({ user, onLogout }) {
             </div>
           </div>
         </div>
+
+        {showDiagrams && (
+          <DiagramGenerator code={code} language={language} />
+        )}
 
         <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-gray-900/80 via-gray-900/90 to-gray-950/95 backdrop-blur-xl shadow-2xl">
           <div className="p-8">
@@ -331,27 +506,21 @@ export default function App() {
   const [pendingRoute, setPendingRoute] = useState(null);
   const [sessionChecked, setSessionChecked] = useState(false);
 
-  // Check for existing session on mount
   useEffect(() => {
     async function checkSession() {
       try {
         const response = await axios.get("/api/auth/session");
         if (response.data.success && response.data.user) {
-          // User has active session on backend
           setUser(response.data.user);
           
-          // Check if user has logged in during this browser session
           const hasLoggedInThisSession = sessionStorage.getItem("userLoggedIn");
           
           if (hasLoggedInThisSession === "true") {
-            // User logged in and then refreshed - go to editor
             setRoute("editor");
           } else {
-            // First visit (even with valid backend session) - show landing
             setRoute("landing");
           }
         } else {
-          // No active session - show landing page
           setRoute("landing");
         }
       } catch (err) {
@@ -364,7 +533,6 @@ export default function App() {
     checkSession();
   }, []);
 
-  // Handle route changes from custom events
   useEffect(() => {
     function onRoute(e) { 
       setRoute(e.detail);
@@ -383,13 +551,11 @@ export default function App() {
     } catch (err) {
       console.error("Logout error:", err);
     }
-    // Clear the login flag on logout
     sessionStorage.removeItem("userLoggedIn");
     setUser(null); 
     setRoute("landing"); 
   }, []);
 
-  // Show loading while checking session
   if (!sessionChecked) {
     return (
       <>
@@ -413,7 +579,6 @@ export default function App() {
             onSignupSuccess={(maybeUser) => {
               if (maybeUser && maybeUser.id) {
                 setUser(maybeUser);
-                // Mark that user has logged in this session
                 sessionStorage.setItem("userLoggedIn", "true");
                 setRoute(pendingRoute || "editor");
                 setPendingRoute(null);
@@ -433,7 +598,6 @@ export default function App() {
         <LoginPage
           onLogin={(u) => {
             setUser(u || { username: "User" });
-            // Mark that user has logged in this session
             sessionStorage.setItem("userLoggedIn", "true");
             setRoute(pendingRoute || "editor");
             setPendingRoute(null);
@@ -452,7 +616,6 @@ export default function App() {
           onSignup={() => setRoute("signup")}
           onSelect={(target) => { 
             if (user) {
-              // User already logged in from previous session, set flag and navigate
               sessionStorage.setItem("userLoggedIn", "true");
               setRoute(target);
             } else {
