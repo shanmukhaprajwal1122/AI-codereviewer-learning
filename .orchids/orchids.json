@@ -1,0 +1,8 @@
+{
+  "projectId": "ac655510-a30b-4022-b676-20b1e7f22680",
+  "createdAt": 1765993088748,
+  "startupCommands": [
+    "cd C:/Users/shanm/orchids-projects/AI-Code-Mentor/frontend; npm run dev",
+    "cd C:/Users/shanm/orchids-projects/AI-Code-Mentor/backend; node server.js"
+  ]
+}
