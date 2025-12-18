@@ -59,7 +59,7 @@ export default function Dashboard({ user, onLogout, onSelectNav }) {
   const weeklyData = generateWeeklyData(activities);
   const difficultyData = generateDifficultyData(progress);
   const activityTypeData = generateActivityTypeData(activities);
-  const streakData = generateStreakData();
+    const streakData = generateStreakData(progress);
 
   return (
     <div className="min-h-screen px-5 py-6">
@@ -411,46 +411,71 @@ function getBadgeIcon(badge) {
   return icons[badge] || "🏅";
 }
 
-function generateWeeklyData(activities) {
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  return days.map((day, i) => ({
-    day,
-    xp: Math.floor(Math.random() * 50) + 10 + (activities.length * 2)
-  }));
+function generateWeeklyData(activities = []) {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const now = new Date();
+  const result = [];
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(now.getDate() - i);
+    const dayName = days[d.getDay()];
+    const dateStr = d.toISOString().split("T")[0];
+
+    const dayActivities = activities.filter(a => {
+      const actDate = new Date(a.createdAt).toISOString().split("T")[0];
+      return actDate === dateStr;
+    });
+
+    // Estimate XP: 10 XP per activity if not specified
+    const estimatedXp = dayActivities.reduce((acc, curr) => {
+      return acc + (curr.details?.xp || 10);
+    }, 0);
+
+    result.push({
+      day: dayName,
+      xp: estimatedXp
+    });
+  }
+  return result;
 }
 
 function generateDifficultyData(progress) {
   const completed = progress?.completedChallengeIds?.length || 0;
   if (completed === 0) {
     return [
-      { name: "Easy", value: 1 },
+      { name: "Easy", value: 0 },
       { name: "Medium", value: 0 },
       { name: "Hard", value: 0 }
     ];
   }
+  // If we don't have difficulty in the model, we distribute based on progress
   return [
-    { name: "Easy", value: Math.ceil(completed * 0.5) },
-    { name: "Medium", value: Math.ceil(completed * 0.35) },
-    { name: "Hard", value: Math.floor(completed * 0.15) || (completed > 2 ? 1 : 0) }
-  ];
+    { name: "Easy", value: Math.ceil(completed * 0.6) },
+    { name: "Medium", value: Math.ceil(completed * 0.3) },
+    { name: "Hard", value: Math.floor(completed * 0.1) }
+  ].filter(d => d.value > 0);
 }
 
-function generateActivityTypeData(activities) {
+function generateActivityTypeData(activities = []) {
   const codeReviews = activities.filter(a => a.action === "code_review").length;
   const quizzes = activities.filter(a => a.action === "quiz_session").length;
   const uploads = activities.filter(a => a.action === "file_upload").length;
   
   return [
-    { name: "Code Reviews", count: codeReviews || Math.floor(Math.random() * 10) + 1 },
-    { name: "Quiz Sessions", count: quizzes || Math.floor(Math.random() * 8) + 1 },
-    { name: "File Uploads", count: uploads || Math.floor(Math.random() * 5) + 1 }
+    { name: "Code Reviews", count: codeReviews },
+    { name: "Quiz Sessions", count: quizzes },
+    { name: "File Uploads", count: uploads }
   ];
 }
 
-function generateStreakData() {
+function generateStreakData(progress) {
+  const totalXP = progress?.xp || 0;
+  const completed = progress?.completedChallengeIds?.length || 0;
+  
   return [
-    { name: "Problem Solving", value: 75, fill: "#60a5fa" },
-    { name: "Code Quality", value: 60, fill: "#a78bfa" },
-    { name: "Learning Progress", value: 85, fill: "#ec4899" }
+    { name: "Problem Solving", value: Math.min(100, completed * 10), fill: "#60a5fa" },
+    { name: "Code Quality", value: Math.min(100, (totalXP / 500) * 100), fill: "#a78bfa" },
+    { name: "Learning Progress", value: Math.min(100, (progress?.badges?.length || 0) * 20), fill: "#ec4899" }
   ];
 }
