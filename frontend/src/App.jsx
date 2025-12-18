@@ -21,6 +21,7 @@ import FuturisticLanding from "./components/FuturisticLanding";
 import LoginPage from "./components/auth/LoginPage";
 import SignupPage from "./components/auth/SignupPage";
 import LearningPanel from "./components/learning/LearningPanel";
+import Dashboard from "./components/dashboard/Dashboard";
 
 /* ---------- Global styles (dark, futuristic) ---------- */
 function GlobalStyles() {
@@ -366,12 +367,13 @@ function MainEditor({ user, onLogout }) {
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onSelect={(key) => {
-          setSidebarOpen(false);
-          if (key === "mentor") {/* already here */}
-          if (key === "quiz") window.dispatchEvent(new CustomEvent("route", { detail: "quiz" }));
-          if (key === "learning") window.dispatchEvent(new CustomEvent("route", { detail: "learning" }));
-        }}
+onSelect={(key) => {
+            setSidebarOpen(false);
+            if (key === "mentor") {/* already here */}
+            if (key === "quiz") window.dispatchEvent(new CustomEvent("route", { detail: "quiz" }));
+            if (key === "learning") window.dispatchEvent(new CustomEvent("route", { detail: "learning" }));
+            if (key === "dashboard") window.dispatchEvent(new CustomEvent("route", { detail: "dashboard" }));
+          }}
         user={user}
         onLogout={onLogout}
       />
@@ -628,41 +630,61 @@ export default function App() {
     );
   }
 
-  if (route === "quiz") {
-    return (
-      <>
-        <GlobalStyles />
-        <QuizPanel
-          user={user || { username: "User" }}
-          onLogout={onLogout}
-          onSelectNav={(key) => {
-            if (key === "editor" || key === "mentor") return setRoute("editor");
-            if (key === "quiz") return setRoute("quiz");
-            if (key === "learning") return setRoute("learning");
-          }}
-        />
-      </>
-    );
-  }
+if (route === "quiz") {
+      return (
+        <>
+          <GlobalStyles />
+          <QuizPanel
+            user={user || { username: "User" }}
+            onLogout={onLogout}
+            onSelectNav={(key) => {
+              if (key === "editor" || key === "mentor") return setRoute("editor");
+              if (key === "quiz") return setRoute("quiz");
+              if (key === "learning") return setRoute("learning");
+              if (key === "dashboard") return setRoute("dashboard");
+            }}
+          />
+        </>
+      );
+    }
 
   if (route === "learning") {
-    return (
-      <>
-        <GlobalStyles />
-        <LearningPanel
-          user={user || { username: "User" }}
-          onLogout={onLogout}
-          onSelectNav={(key) => {
-            if (key === "editor" || key === "mentor") return setRoute("editor");
-            if (key === "quiz") return setRoute("quiz");
-            if (key === "learning") return setRoute("learning");
-          }}
-        />
-      </>
-    );
-  }
+      return (
+        <>
+          <GlobalStyles />
+          <LearningPanel
+            user={user || { username: "User" }}
+            onLogout={onLogout}
+            onSelectNav={(key) => {
+              if (key === "editor" || key === "mentor") return setRoute("editor");
+              if (key === "quiz") return setRoute("quiz");
+              if (key === "learning") return setRoute("learning");
+              if (key === "dashboard") return setRoute("dashboard");
+            }}
+          />
+        </>
+      );
+    }
 
-  return (
+    if (route === "dashboard") {
+      return (
+        <>
+          <GlobalStyles />
+          <Dashboard
+            user={user || { username: "User" }}
+            onLogout={onLogout}
+            onSelectNav={(key) => {
+              if (key === "editor" || key === "mentor") return setRoute("editor");
+              if (key === "quiz") return setRoute("quiz");
+              if (key === "learning") return setRoute("learning");
+              if (key === "dashboard") return setRoute("dashboard");
+            }}
+          />
+        </>
+      );
+    }
+
+    return (
     <>
       <GlobalStyles />
       <ErrorBoundary>

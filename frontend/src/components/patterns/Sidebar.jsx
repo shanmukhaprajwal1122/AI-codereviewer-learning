@@ -33,11 +33,12 @@ export default function Sidebar({ open, onClose, onSelect, user, onLogout }) {
       </div>
 
       <nav className="py-6 overflow-y-auto pb-28 px-3">
-        {[
-          { key: "mentor", label: "AI Code Mentor", icon: "🤖" },
-          { key: "quiz", label: "Aptitude Panel", icon: "📝" },
-          { key: "learning", label: "Learning Panel", icon: "🧩" },
-        ].map((item) => (
+{[
+            { key: "mentor", label: "AI Code Mentor", icon: "🤖" },
+            { key: "dashboard", label: "Progress Dashboard", icon: "📊" },
+            { key: "quiz", label: "Aptitude Panel", icon: "📝" },
+            { key: "learning", label: "Learning Panel", icon: "🧩" },
+          ].map((item) => (
           <button
             key={item.key}
             onClick={() => onSelect?.(item.key)}

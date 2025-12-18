@@ -202,4 +202,21 @@ router.post('/log', async (req, res) => {
 });
 
 
+router.get('/history', async (req, res) => {
+  try {
+    const username = req.query.username || await getUsername(req);
+    const limit = parseInt(req.query.limit) || 50;
+    
+    const activities = await Activity.find({ username })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    
+    res.json({ success: true, activities });
+  } catch (err) {
+    console.error('Activity history error:', err);
+    res.status(500).json({ success: false, message: 'Failed to fetch activity history' });
+  }
+});
+
 module.exports = router;
