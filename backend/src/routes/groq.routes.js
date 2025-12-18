@@ -95,7 +95,16 @@ function makeIdFromTitle(title) {
 
 function jsToJavaLiteral(v) {
   if (v === null) return "null";
-  if (typeof v === "number") return Number.isInteger(v) ? `${v}` : `${v}`;
+  if (typeof v === "number") {
+    if (Number.isInteger(v)) {
+      // If it exceeds Java int range, add 'L' suffix
+      if (v > 2147483647 || v < -2147483648) {
+        return `${v}L`;
+      }
+      return `${v}`;
+    }
+    return `${v}`;
+  }
   if (typeof v === "boolean") return v ? "true" : "false";
   if (typeof v === "string")
     return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
@@ -104,13 +113,26 @@ function jsToJavaLiteral(v) {
     
     // Check if it's a 2D array of integers
     if (Array.isArray(v[0]) && v[0].every((n) => n === null || Number.isInteger(n))) {
-      const inner = v.map(jsToJavaLiteral).join(", ");
-      return `new int[][]{${inner}}`;
+      const hasLarge = v.some(row => row.some(n => n !== null && (n > 2147483647 || n < -2147483648)));
+      const type = hasLarge ? "long" : "int";
+      const inner = v.map(row => {
+        const rowInner = row.map(n => {
+          if (n === null) return "0";
+          return (n > 2147483647 || n < -2147483648) ? `${n}L` : `${n}`;
+        }).join(", ");
+        return `new ${type}[]{${rowInner}}`;
+      }).join(", ");
+      return `new ${type}[][]{${inner}}`;
     }
     
     // Check if it's a 1D array of integers
     if (v.every((n) => n === null || Number.isInteger(n))) {
-      return `new int[]{${v.map(n => n === null ? "0" : n).join(", ")}}`;
+      const hasLarge = v.some(n => n !== null && (n > 2147483647 || n < -2147483648));
+      const type = hasLarge ? "long" : "int";
+      return `new ${type}[]{${v.map(n => {
+        if (n === null) return "0";
+        return (n > 2147483647 || n < -2147483648) ? `${n}L` : `${n}`;
+      }).join(", ")}}`;
     }
     
     // Check if it's a 1D array of strings
@@ -302,9 +324,19 @@ public class Runner {
     for(int i=0;i<a.length;i++){ if(i>0) sb.append(","); sb.append(a[i]); }
     sb.append("]"); return sb.toString();
   }
+  static String arrLongToJson(long[] a){
+    StringBuilder sb=new StringBuilder(); sb.append("[");
+    for(int i=0;i<a.length;i++){ if(i>0) sb.append(","); sb.append(a[i]); }
+    sb.append("]"); return sb.toString();
+  }
   static String arrArrIntToJson(int[][] a){
     StringBuilder sb=new StringBuilder(); sb.append("[");
     for(int i=0;i<a.length;i++){ if(i>0) sb.append(","); sb.append(arrIntToJson(a[i])); }
+    sb.append("]"); return sb.toString();
+  }
+  static String arrArrLongToJson(long[][] a){
+    StringBuilder sb=new StringBuilder(); sb.append("[");
+    for(int i=0;i<a.length;i++){ if(i>0) sb.append(","); sb.append(arrLongToJson(a[i])); }
     sb.append("]"); return sb.toString();
   }
   static String strArrToJson(String[] a){
@@ -317,14 +349,16 @@ public class Runner {
     if(o instanceof Integer || o instanceof Long || o instanceof Double || o instanceof Boolean) return String.valueOf(o);
     if(o instanceof String) return "\\"" + escapeJson((String)o) + "\\"";
     if(o instanceof int[]) return arrIntToJson((int[])o);
+    if(o instanceof long[]) return arrLongToJson((long[])o);
     if(o instanceof int[][]) return arrArrIntToJson((int[][])o);
+    if(o instanceof long[][]) return arrArrLongToJson((long[][])o);
     if(o instanceof String[]) return strArrToJson((String[])o);
     return "\\"" + escapeJson(String.valueOf(o)) + "\\"";
   }
   public static void main(String[] args){
     StringBuilder results=new StringBuilder(); results.append("[");
     boolean allPassed=true, first=true;
-${callLines}
+  ${callLines}
     results.append("]");
     System.out.println("{\\"results\\":"+results.toString()+",\\"allPassed\\":"+allPassed+"}");
   }
@@ -667,7 +701,8 @@ Output MUST be a minified JSON object with:
   - Language: ${lang}
   - Language-specific rules: ${hints[lang] || ""}
   - For Java: The solution MUST be wrapped in 'public class Solution'.
-  - For Array Inputs: Ensure dimensions match the function signature. If the function expects a 2D array (like int[][]), use [[]] for an empty input to distinguish it from a 1D array [].
+  - For Java: If using 'int' types, ensure values are within -2,147,483,648 to 2,147,483,647. If larger values are needed, use 'long' type in BOTH the signature and test cases.
+  - For Array Inputs: Ensure dimensions and types match the function signature. If the function expects a 2D array (like int[][]), use [[]] for an empty input to distinguish it from a 1D array [].
   - For "hard" difficulty: Problems should involve complex logic like dynamic programming, graph algorithms, or advanced data structures. Test cases should include edge cases.
   - Test cases: 5-8
   - Formatting: Ensure 'solution' and 'starterCode' strings contain actual newlines (\\n) and proper indentation.
