@@ -546,9 +546,29 @@ export default function LearningPanel({ user, onLogout }) {
                 </div>
 
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <CodeIcon />
-                    <span className="text-sm font-bold text-slate-300">Your Solution</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CodeIcon />
+                      <span className="text-sm font-bold text-slate-300">Your Solution</span>
+                    </div>
+                    
+                    {/* Inline Language Selector for better visibility */}
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900/50 border border-white/5 backdrop-blur-sm">
+                      {LANG_OPTIONS.map((l) => (
+                        <button
+                          key={l.value}
+                          onClick={() => setLanguage(l.value)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            language === l.value
+                              ? "bg-purple-500 text-white shadow-lg shadow-purple-500/30"
+                              : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                          }`}
+                        >
+                          <span>{l.icon}</span>
+                          <span className="hidden sm:inline">{l.label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="rounded-2xl overflow-hidden border border-white/10 bg-slate-950/80 shadow-2xl">
                     <Editor

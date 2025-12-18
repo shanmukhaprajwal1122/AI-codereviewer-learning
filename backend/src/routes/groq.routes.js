@@ -237,19 +237,20 @@ async function runJava(functionName, userCode, testCases) {
     .map((tc, idx) => {
       const argList = (tc.args || []).map(jsToJavaLiteral).join(", ");
       const expected = jsToJavaLiteral(tc.expected);
+      const descJson = JSON.stringify(tc.description || "");
       return `
     try {
       var out = Solution.${tc.functionName || functionName}(${argList});
       boolean ok = java.util.Objects.equals(out, ${expected});
       if (!first) results.append(",");
       first=false;
-      results.append("{\\"case\\":${idx + 1},\\"args\\":\\"\\",\\"expected\\":\\"\\",\\"output\\":" + toJson(out) + ",\\"passed\\":" + ok + ",\\"error\\":null,\\"description\\":${JSON.stringify(tc.description || "")}}");
+      results.append("{\\"case\\":${idx + 1},\\"args\\":\\"\\",\\"expected\\":\\"\\",\\"output\\":" + toJson(out) + ",\\"passed\\":" + ok + ",\\"error\\":null,\\"description\\":" + ${descJson} + "}");
       if (!ok) allPassed=false;
     } catch (Exception e) {
       if (!first) results.append(",");
       first=false;
       allPassed=false;
-      results.append("{\\"case\\":${idx + 1},\\"args\\":\\"\\",\\"expected\\":\\"\\",\\"output\\":null,\\"passed\\":false,\\"error\\":\\"" + escapeJson(e.toString()) + "\\",\\"description\\":${JSON.stringify(tc.description || "")}}");
+      results.append("{\\"case\\":${idx + 1},\\"args\\":\\"\\",\\"expected\\":\\"\\",\\"output\\":null,\\"passed\\":false,\\"error\\":\\"" + escapeJson(e.toString()) + "\\",\\"description\\":" + ${descJson} + "}");
     }`;
     })
     .join("\n");
@@ -258,7 +259,10 @@ async function runJava(functionName, userCode, testCases) {
 import java.util.*;
 
 public class Runner {
-  static String escapeJson(String s){ return s.replace("\\\\","\\\\\\\\").replace("\"","\\\\\\\""); }
+  static String escapeJson(String s){ 
+    if(s==null) return "";
+    return s.replace("\\\\","\\\\\\\\").replace("\\\"","\\\\\\\"").replace("\\n","\\\\n").replace("\\r","\\\\r");
+  }
   static String arrIntToJson(int[] a){
     StringBuilder sb=new StringBuilder(); sb.append("[");
     for(int i=0;i<a.length;i++){ if(i>0) sb.append(","); sb.append(a[i]); }
@@ -299,6 +303,7 @@ ${callLines}
     const p = spawn("javac", ["Solution.java", "Runner.java"], { cwd: dir });
     let err = "";
     p.stderr.on("data", (d) => (err += d.toString()));
+    p.on("error", (e) => rej(new Error(`Failed to start javac: ${e.message}`)));
     p.on("close", (c) => (c === 0 ? res() : rej(new Error(err || "javac failed"))));
   });
 
@@ -308,6 +313,7 @@ ${callLines}
       e = "";
     p.stdout.on("data", (d) => (o += d.toString()));
     p.stderr.on("data", (d) => (e += d.toString()));
+    p.on("error", (err) => rej(new Error(`Failed to start java: ${err.message}`)));
     p.on("close", (c) => (c === 0 ? res(o) : rej(new Error(e || "java failed"))));
   });
 
@@ -375,15 +381,25 @@ async function runC(functionName, userCode, testCases, isCpp = false) {
       if (Array.isArray(a)) return `{${a.join(", ")}}`;
       return String(a);
     }).join(", ");
+    
+    // For C/C++, we'll use a slightly different approach to avoid 'auto' in pure C
+    // and handle basic types. We'll assume the function returns a type compatible with the expected value.
+    const resultVar = `result_${idx}`;
+    const expectedVar = `expected_${idx}`;
+    
     return `
     {
-      int passed = 0;
       // Test case ${idx + 1}
       printf("{\\"case\\": %d, ", ${idx + 1});
-      // Run test (simplified - assumes numeric return)
-      auto result = ${functionName}(${argsStr});
-      auto expected = ${JSON.stringify(tc.expected)};
-      passed = (result == expected) ? 1 : 0;
+      
+      // We use C++ style for both if possible, or stick to a common subset
+      // If pure C, we can't use 'auto', so we'll try to infer or use a generic comparison
+      // For now, let's assume we can use a basic comparison for numeric/bool types
+      
+      double result = (double)${functionName}(${argsStr});
+      double expected = (double)${JSON.stringify(tc.expected)};
+      int passed = (result == expected) ? 1 : 0;
+      
       if (!passed) allPassed = 0;
       printf("\\"passed\\": %s, \\"description\\": \\"%s\\"},", passed ? "true" : "false", "${(tc.description || "").replace(/"/g, '\\"')}");
     }`;
@@ -394,6 +410,7 @@ async function runC(functionName, userCode, testCases, isCpp = false) {
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <cstdio>
 using namespace std;
 
 ${userCode}
@@ -430,6 +447,7 @@ int main() {
       const p = spawn(compiler, [codePath, "-o", outPath], { cwd: dir });
       let err = "";
       p.stderr.on("data", (d) => (err += d.toString()));
+      p.on("error", (e) => rej(new Error(`Compiler '${compiler}' not found. Please ensure it is installed and in PATH. (${e.message})`)));
       p.on("close", (c) => (c === 0 ? res() : rej(new Error(err || `${compiler} compilation failed`))));
     });
 
@@ -438,6 +456,7 @@ int main() {
       let o = "", e = "";
       p.stdout.on("data", (d) => (o += d.toString()));
       p.stderr.on("data", (d) => (e += d.toString()));
+      p.on("error", (err) => rej(new Error(`Failed to execute compiled binary: ${err.message}`)));
       p.on("close", (c) => (c === 0 ? res(o) : rej(new Error(e || "execution failed"))));
     });
 
@@ -553,8 +572,8 @@ router.post("/generate-challenge", async (req, res) => {
   "language": "${lang}",
   "functionName": "functionNameOnly",
   "signature": "language-appropriate function signature only",
-  "starterCode": "starter code only",
-  "solution": "full correct reference solution in ${lang}",
+  "starterCode": "starter code with proper indentation",
+  "solution": "full correct reference solution with proper indentation and best practices",
   "testCases": [
     {"args": [inputs...], "expected": output, "description": "short case desc"}
   ]
@@ -566,6 +585,7 @@ Rules:
 - ${hints[lang]}
 - The solution must pass all testCases.
 - ${blacklist}
+- IMPORTANT: Use 4 spaces for indentation. Ensure the code is clean and readable.
 - IMPORTANT: Return ONLY minified JSON (no prose, no markdown, no fences).`;
 
     console.log("[generate-challenge] Calling AI API...");
