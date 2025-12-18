@@ -237,20 +237,21 @@ async function runJava(functionName, userCode, testCases) {
     .map((tc, idx) => {
       const argList = (tc.args || []).map(jsToJavaLiteral).join(", ");
       const expected = jsToJavaLiteral(tc.expected);
-      const descJson = JSON.stringify(tc.description || "");
+      // Escape description for Java string and JSON
+      const descEscaped = (tc.description || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       return `
     try {
       var out = Solution.${tc.functionName || functionName}(${argList});
       boolean ok = java.util.Objects.equals(out, ${expected});
       if (!first) results.append(",");
       first=false;
-      results.append("{\\"case\\":${idx + 1},\\"args\\":\\"\\",\\"expected\\":\\"\\",\\"output\\":" + toJson(out) + ",\\"passed\\":" + ok + ",\\"error\\":null,\\"description\\":" + ${descJson} + "}");
+      results.append("{\\"case\\":${idx + 1},\\"args\\":\\"\\",\\"expected\\":\\"\\",\\"output\\":" + toJson(out) + ",\\"passed\\":" + ok + ",\\"error\\":null,\\"description\\":\\"${descEscaped}\\"}");
       if (!ok) allPassed=false;
     } catch (Exception e) {
       if (!first) results.append(",");
       first=false;
       allPassed=false;
-      results.append("{\\"case\\":${idx + 1},\\"args\\":\\"\\",\\"expected\\":\\"\\",\\"output\\":null,\\"passed\\":false,\\"error\\":\\"" + escapeJson(e.toString()) + "\\",\\"description\\":" + ${descJson} + "}");
+      results.append("{\\"case\\":${idx + 1},\\"args\\":\\"\\",\\"expected\\":\\"\\",\\"output\\":null,\\"passed\\":false,\\"error\\":\\"" + escapeJson(e.toString()) + "\\",\\"description\\":\\"${descEscaped}\\"}");
     }`;
     })
     .join("\n");
@@ -324,9 +325,8 @@ ${callLines}
 }
 
 async function runJavaScript(functionName, userCode, testCases) {
-  const { VM } = require("vm2");
-  const vm = new VM({ timeout: 3000, sandbox: {} });
-
+  const vm = require("vm");
+  
   const results = [];
   let allPassed = true;
 
@@ -340,7 +340,16 @@ async function runJavaScript(functionName, userCode, testCases) {
           return ${functionName}(${argsStr});
         })();
       `;
-      const output = vm.run(fullCode);
+      
+      // Create a fresh context for each test
+      const sandbox = { result: undefined, console: { log: () => {} } };
+      const context = vm.createContext(sandbox);
+      
+      // Run with timeout
+      const script = new vm.Script(`result = (function() { ${userCode}; return ${functionName}(${argsStr}); })();`);
+      script.runInContext(context, { timeout: 5000 });
+      
+      const output = sandbox.result;
       const passed = JSON.stringify(output) === JSON.stringify(tc.expected);
       if (!passed) allPassed = false;
       results.push({
