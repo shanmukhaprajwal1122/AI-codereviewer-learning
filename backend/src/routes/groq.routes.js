@@ -94,22 +94,34 @@ function makeIdFromTitle(title) {
 }
 
 function jsToJavaLiteral(v) {
+  if (v === null) return "null";
   if (typeof v === "number") return Number.isInteger(v) ? `${v}` : `${v}`;
   if (typeof v === "boolean") return v ? "true" : "false";
   if (typeof v === "string")
     return `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   if (Array.isArray(v)) {
-    if (v.length && Array.isArray(v[0]) && v[0].every((n) => Number.isInteger(n))) {
+    if (v.length === 0) return "new int[]{}"; // Default for empty
+    
+    // Check if it's a 2D array of integers
+    if (Array.isArray(v[0]) && v[0].every((n) => n === null || Number.isInteger(n))) {
       const inner = v.map(jsToJavaLiteral).join(", ");
       return `new int[][]{${inner}}`;
     }
-    if (v.every((n) => Number.isInteger(n))) {
-      return `new int[]{${v.join(", ")}}`;
+    
+    // Check if it's a 1D array of integers
+    if (v.every((n) => n === null || Number.isInteger(n))) {
+      return `new int[]{${v.map(n => n === null ? "0" : n).join(", ")}}`;
     }
-    if (v.every((x) => typeof x === "string")) {
+    
+    // Check if it's a 1D array of strings
+    if (v.every((x) => x === null || typeof x === "string")) {
       const inner = v.map(jsToJavaLiteral).join(", ");
       return `new String[]{${inner}}`;
     }
+    
+    // Fallback for empty or unknown arrays
+    const inner = v.map(jsToJavaLiteral).join(", ");
+    return `new Object[]{${inner}}`;
   }
   return `"${String(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
@@ -243,7 +255,9 @@ async function runJava(functionName, userCode, testCases) {
     const lines = finalCode.split("\n");
     const imports = lines.filter(l => l.trim().startsWith("import "));
     const other = lines.filter(l => !l.trim().startsWith("import "));
-    finalCode = `${imports.join("\n")}\npublic class Solution {\n${other.join("\n")}\n}`;
+    // Indent the user's code to maintain readability
+    const indentedOther = other.map(line => "    " + line).join("\n");
+    finalCode = `${imports.join("\n")}\npublic class Solution {\n${indentedOther}\n}`;
   } else {
     console.log("[runJava] class Solution already present, skipping wrap.");
   }
@@ -643,19 +657,21 @@ Output MUST be a minified JSON object with:
   "language": "${lang}",
   "functionName": "camelCaseName",
   "signature": "Function signature",
-  "starterCode": "Initial code template with ONLY the function signature and a simple return or empty body. DO NOT INCLUDE THE SOLUTION LOGIC HERE.",
-  "solution": "Complete correct code with the full implementation",
-  "testCases": [{"args": [], "expected": null, "description": ""}]
-}
-Requirements:
-- Topic: ${topic || "General"}
-- Difficulty: ${difficulty || "easy"}
-- Language: ${lang}
-- Language-specific rules: ${hints[lang] || ""}
-- For Java: The solution MUST be wrapped in 'public class Solution'.
-- For "hard" difficulty: Problems should involve complex logic like dynamic programming, graph algorithms, or advanced data structures. Test cases should include edge cases.
-- Test cases: 5-8
-- Return ONLY JSON. NO markdown. NO prose.`;
+    "starterCode": "Initial code template with ONLY the function signature and a simple return or empty body. For Java, include 'public class Solution'. DO NOT include any logic. MUST BE MINIMAL.",
+    "solution": "Complete correct code with the full implementation. Preserve proper indentation and newlines. For Java, MUST be wrapped in 'public class Solution'.",
+    "testCases": [{"args": [], "expected": null, "description": ""}]
+  }
+  Requirements:
+  - Topic: ${topic || "General"}
+  - Difficulty: ${difficulty || "easy"}
+  - Language: ${lang}
+  - Language-specific rules: ${hints[lang] || ""}
+  - For Java: The solution MUST be wrapped in 'public class Solution'.
+  - For Array Inputs: Ensure dimensions match the function signature. If the function expects a 2D array (like int[][]), use [[]] for an empty input to distinguish it from a 1D array [].
+  - For "hard" difficulty: Problems should involve complex logic like dynamic programming, graph algorithms, or advanced data structures. Test cases should include edge cases.
+  - Test cases: 5-8
+  - Formatting: Ensure 'solution' and 'starterCode' strings contain actual newlines (\\n) and proper indentation.
+  - Return ONLY JSON. NO markdown. NO prose.`;
 
     console.log("[generate-challenge] Calling AI API...");
 
