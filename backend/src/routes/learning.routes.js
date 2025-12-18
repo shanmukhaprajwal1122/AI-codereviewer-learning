@@ -165,6 +165,28 @@ router.post("/api/learning/run-tests", async (req, res) => {
       }
 
       await progress.save();
+
+      // Log activity
+      try {
+        const Activity = require("../models/Activity");
+        const activity = new Activity({
+          username,
+          action: "challenge_completed",
+          details: {
+            description: `Completed challenge: ${ch.title}`,
+            metadata: {
+              challengeId,
+              topic: ch.topic,
+              difficulty: ch.difficulty,
+              xpGained
+            }
+          },
+          status: "completed"
+        });
+        await activity.save();
+      } catch (activityErr) {
+        console.error("Failed to log challenge activity:", activityErr);
+      }
     }
 
     return res.json({

@@ -58,7 +58,7 @@ export default function Dashboard({ user, onLogout, onSelectNav }) {
 
   const weeklyData = generateWeeklyData(activities);
   const difficultyData = generateDifficultyData(progress);
-  const activityTypeData = generateActivityTypeData(activities);
+    const activityTypeData = generateActivityTypeData(activities, completedChallenges);
     const streakData = generateStreakData(progress);
 
   return (
@@ -141,27 +141,52 @@ export default function Dashboard({ user, onLogout, onSelectNav }) {
             />
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-gray-900/80 via-gray-900/90 to-gray-950/95 backdrop-blur-xl shadow-2xl p-6"
-          >
-            <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">
-              Level Progress
-            </h3>
-            <div className="relative h-6 bg-gray-800/60 rounded-full overflow-hidden border border-purple-500/20">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercent}%` }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
-              />
-              <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow">
-                Level {level} • {totalXP} XP
-              </div>
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-gray-900/80 via-gray-900/90 to-gray-950/95 backdrop-blur-xl shadow-2xl p-6"
+              >
+                <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">
+                  Level Progress
+                </h3>
+                <div className="relative h-6 bg-gray-800/60 rounded-full overflow-hidden border border-purple-500/20">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPercent}%` }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow">
+                    Level {level} • {totalXP} XP
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25 }}
+                className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-gray-900/80 via-gray-900/90 to-gray-950/95 backdrop-blur-xl shadow-2xl p-6"
+              >
+                <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-emerald-400 to-cyan-400 text-transparent bg-clip-text flex justify-between">
+                  <span>Problems Solved</span>
+                  <span className="text-sm font-mono text-gray-400">{completedChallenges} Solved</span>
+                </h3>
+                <div className="relative h-6 bg-gray-800/60 rounded-full overflow-hidden border border-emerald-500/20">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, (completedChallenges / 20) * 100)}%` }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white drop-shadow">
+                    {completedChallenges} / 20 Challenges
+                  </div>
+                </div>
+              </motion.div>
             </div>
-          </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <motion.div
@@ -457,7 +482,7 @@ function generateDifficultyData(progress) {
   ].filter(d => d.value > 0);
 }
 
-function generateActivityTypeData(activities = []) {
+function generateActivityTypeData(activities = [], completedChallenges = 0) {
   const codeReviews = activities.filter(a => a.action === "code_review").length;
   const quizzes = activities.filter(a => a.action === "quiz_session").length;
   const uploads = activities.filter(a => a.action === "file_upload").length;
@@ -465,6 +490,7 @@ function generateActivityTypeData(activities = []) {
   return [
     { name: "Code Reviews", count: codeReviews },
     { name: "Quiz Sessions", count: quizzes },
+    { name: "Problems Solved", count: completedChallenges },
     { name: "File Uploads", count: uploads }
   ];
 }

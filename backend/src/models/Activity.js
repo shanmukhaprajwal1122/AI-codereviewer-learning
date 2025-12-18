@@ -10,7 +10,7 @@ const activitySchema = new mongoose.Schema({
   action: {
     type: String,
     required: true,
-    enum: ['code_review', 'quiz_session', 'file_upload', 'general']
+    enum: ['code_review', 'quiz_session', 'file_upload', 'challenge_completed', 'general']
   },
 
   // optional idempotency key
