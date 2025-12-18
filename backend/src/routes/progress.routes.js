@@ -6,6 +6,7 @@
 const express = require("express");
 const router = express.Router();
 const Progress = require("../models/Progress");
+const Activity = require("../models/Activity");
 
 // ---- XP map by difficulty
 const XP_BY_DIFFICULTY = {
@@ -108,6 +109,29 @@ router.post("/award", async (req, res) => {
     doc.xp = (doc.xp || 0) + xpGain;
     doc.badges = Array.from(new Set([...(doc.badges || []), ...badgesAwarded]));
     await doc.save();
+
+    // Log activity for the graph
+    try {
+      const activity = new Activity({
+        username,
+        action: 'challenge_completed',
+        details: {
+          description: `Completed challenge: ${challengeTitle || challengeId}`,
+          xp: xpGain,
+          metadata: {
+            challengeId,
+            difficulty,
+            language,
+            badgesAwarded
+          }
+        },
+        status: 'completed'
+      });
+      await activity.save();
+    } catch (actErr) {
+      console.error("Failed to log challenge activity:", actErr);
+      // Don't fail the request if activity logging fails
+    }
 
     res.json({
       success: true,

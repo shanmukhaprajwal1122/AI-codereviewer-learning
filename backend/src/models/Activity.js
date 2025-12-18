@@ -32,6 +32,7 @@ const activitySchema = new mongoose.Schema({
   // General details
   details: {
     description: String,
+    xp: Number,
     metadata: mongoose.Schema.Types.Mixed
   },
 

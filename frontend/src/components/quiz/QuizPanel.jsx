@@ -179,9 +179,24 @@ export default function QuizPanel({ user, onLogout, onSelectNav }) {
     setAnswers(prev => ({ ...prev, [index]: i }));
   }
 
-  function next() {
-    if (index < questions.length - 1) setIndex(i => i + 1);
-    else setShowResult(true);
+  async function next() {
+    if (index < questions.length - 1) {
+      setIndex(i => i + 1);
+    } else {
+      setShowResult(true);
+      // Award XP for finishing the quiz
+      try {
+        const username = user?.username || user?.name || "User";
+        await axios.post("http://localhost:3000/api/quiz/finish", {
+          username,
+          score,
+          total: questions.length,
+          language
+        });
+      } catch (err) {
+        console.error("Failed to finish quiz and award XP:", err);
+      }
+    }
   }
 
   function prev() {

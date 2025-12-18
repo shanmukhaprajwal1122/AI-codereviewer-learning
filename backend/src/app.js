@@ -121,7 +121,9 @@ app.use("/api/progress", progressRoutes);
 console.log("   ✅ Progress routes loaded");
 
 // ✅ QUIZ FLOW
-// Remove duplication — keep this only once
+const quizRoutes = require("./routes/quiz.routes");
+app.use("/api/quiz", quizRoutes);
+
 const aiQuizRoutes = require("./routes/ai"); 
 app.use("/ai", aiQuizRoutes);
 

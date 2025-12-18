@@ -2,6 +2,8 @@
 const express = require("express");
 const router = express.Router();
 const Groq = require("groq-sdk");
+const Activity = require("../models/Activity");
+const Progress = require("../models/Progress");
 
 // Use a dedicated key for the single-question quiz API
 // Add GROQ_SINGLE_QUIZ_API_KEY=gsk_... in your .env
@@ -111,30 +113,52 @@ Return ONLY a valid JSON object (no prose, no markdown) with exactly:
 
 // Submit answer and get feedback
 router.post("/submit", async (req, res) => {
+  // ... (existing code)
+});
+
+// Finalize quiz and award total XP
+router.post("/finish", async (req, res) => {
   try {
-    const { id, choiceIndex } = req.body || {};
-
-    if (!id || typeof choiceIndex !== "number") {
-      return res.status(400).json({ error: "Invalid submission" });
+    const { username = "User", score, total, language = "programming" } = req.body || {};
+    
+    if (typeof score !== "number" || typeof total !== "number") {
+      return res.status(400).json({ error: "Invalid score data" });
     }
 
-    const stored = questionStore.get(id);
-    if (!stored) {
-      return res.status(404).json({ error: "Question not found or expired" });
+    // Award 2 XP per correct answer, max 20 XP
+    const xpAwarded = Math.min(20, score * 2);
+
+    if (xpAwarded > 0) {
+      // Update Progress
+      let progress = await Progress.findOne({ username });
+      if (!progress) {
+        progress = await Progress.create({ username, xp: 0, badges: [], completedChallengeIds: [] });
+      }
+      progress.xp = (progress.xp || 0) + xpAwarded;
+      await progress.save();
+
+      // Log Activity
+      const activity = new Activity({
+        username,
+        action: 'quiz_session',
+        details: {
+          description: `Completed ${language} quiz: ${score}/${total}`,
+          xp: xpAwarded,
+          metadata: {
+            score,
+            total,
+            language
+          }
+        },
+        status: 'completed'
+      });
+      await activity.save();
     }
 
-    const correct = choiceIndex === stored.answerIndex;
-
-    res.json({
-      data: {
-        correct,
-        answerIndex: stored.answerIndex,
-        explanation: stored.explanation,
-      },
-    });
+    res.json({ success: true, xpGained: xpAwarded });
   } catch (error) {
-    console.error("❌ Error submitting answer:", error);
-    res.status(500).json({ error: "Failed to submit answer", message: error?.message || "Unknown error" });
+    console.error("❌ Error finishing quiz:", error);
+    res.status(500).json({ error: "Failed to finish quiz" });
   }
 });
 
