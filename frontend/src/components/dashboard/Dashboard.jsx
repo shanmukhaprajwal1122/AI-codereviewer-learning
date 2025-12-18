@@ -362,40 +362,77 @@ export default function Dashboard({ user, onLogout, onSelectNav }) {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-gray-900/80 via-gray-900/90 to-gray-950/95 backdrop-blur-xl shadow-2xl p-6"
-          >
-            <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text">
-              🎯 Completed Challenges
-            </h3>
-            {completedChallenges > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {(progress?.completedChallengeIds || []).slice(0, 12).map((id, index) => (
-                  <motion.div
-                    key={id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 * index }}
-                    className="px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-sm text-emerald-300 font-mono text-center truncate"
-                  >
-                    ✓ {id.slice(0, 8)}...
-                  </motion.div>
-                ))}
-                {completedChallenges > 12 && (
-                  <div className="px-3 py-2 rounded-lg bg-gray-500/10 border border-gray-500/30 text-sm text-gray-400 text-center">
-                    +{completedChallenges - 12} more
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <div className="text-4xl mb-3 opacity-50">🎯</div>
-                <p className="text-gray-400">No challenges completed yet. Start coding!</p>
-              </div>
-            )}
-          </motion.div>
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
+              className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-gray-900/80 via-gray-900/90 to-gray-950/95 backdrop-blur-xl shadow-2xl p-6"
+            >
+              <h3 className="text-xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text flex items-center justify-between">
+                <span>🎯 Completed Challenges</span>
+                <span className="text-sm font-normal text-gray-400">{completedChallenges} solved</span>
+              </h3>
+              {completedChallenges > 0 ? (
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                  {(progress?.completedChallenges || progress?.completedChallengeIds || []).slice(0, 20).map((item, index) => {
+                    const isObject = typeof item === 'object';
+                    const title = isObject ? item.title : item;
+                    const difficulty = isObject ? item.difficulty : null;
+                    const lang = isObject ? item.language : null;
+                    const completedAt = isObject && item.completedAt ? new Date(item.completedAt).toLocaleDateString() : null;
+                    
+                    return (
+                      <motion.div
+                        key={isObject ? item.id : item}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.03 * index }}
+                        className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
+                            ✓
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-emerald-300 truncate group-hover:text-emerald-200 transition-colors">
+                              {title}
+                            </p>
+                            {(difficulty || lang || completedAt) && (
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {difficulty && (
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    difficulty === 'hard' ? 'bg-red-500/20 text-red-400' :
+                                    difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                                    'bg-green-500/20 text-green-400'
+                                  }`}>
+                                    {difficulty}
+                                  </span>
+                                )}
+                                {lang && (
+                                  <span className="text-xs text-gray-500">{lang}</span>
+                                )}
+                                {completedAt && (
+                                  <span className="text-xs text-gray-600">{completedAt}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                  {completedChallenges > 20 && (
+                    <div className="text-center py-2 text-sm text-gray-500">
+                      +{completedChallenges - 20} more challenges completed
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3 opacity-50">🎯</div>
+                  <p className="text-gray-400">No challenges completed yet. Start coding!</p>
+                </div>
+              )}
+            </motion.div>
         </div>
       )}
     </div>

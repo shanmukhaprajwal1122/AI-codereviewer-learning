@@ -64,7 +64,7 @@ router.get("/:username", async (req, res) => {
 // Award XP/badges after a pass
 router.post("/award", async (req, res) => {
   try {
-    const { username, challengeId, difficulty = "easy", language = "javascript", passed } = req.body || {};
+    const { username, challengeId, challengeTitle, difficulty = "easy", language = "javascript", passed } = req.body || {};
     if (!username || !challengeId) {
       return res.status(400).json({ success: false, message: "username and challengeId required" });
     }
@@ -74,7 +74,7 @@ router.post("/award", async (req, res) => {
 
     let doc = await Progress.findOne({ username });
     if (!doc) {
-      doc = await Progress.create({ username, xp: 0, badges: [], completedChallengeIds: [] });
+      doc = await Progress.create({ username, xp: 0, badges: [], completedChallengeIds: [], completedChallenges: [] });
     }
 
     // If already completed, don't double-count
@@ -97,6 +97,14 @@ router.post("/award", async (req, res) => {
 
     // Update doc
     doc.completedChallengeIds.push(challengeId);
+    if (!doc.completedChallenges) doc.completedChallenges = [];
+    doc.completedChallenges.push({
+      id: challengeId,
+      title: challengeTitle || challengeId,
+      difficulty: difficulty,
+      language: language,
+      completedAt: new Date()
+    });
     doc.xp = (doc.xp || 0) + xpGain;
     doc.badges = Array.from(new Set([...(doc.badges || []), ...badgesAwarded]));
     await doc.save();

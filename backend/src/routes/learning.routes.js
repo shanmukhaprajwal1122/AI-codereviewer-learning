@@ -144,11 +144,18 @@ router.post("/api/learning/run-tests", async (req, res) => {
         });
       }
 
-      // Add challenge ID if not already completed
-      if (!progress.completedChallengeIds.includes(challengeId)) {
-        progress.completedChallengeIds.push(challengeId);
-        progress.xp += xpGained;
-      }
+        // Add challenge ID if not already completed
+        if (!progress.completedChallengeIds.includes(challengeId)) {
+          progress.completedChallengeIds.push(challengeId);
+          progress.completedChallenges.push({
+            id: challengeId,
+            title: ch.title,
+            difficulty: ch.difficulty,
+            language: "javascript",
+            completedAt: new Date()
+          });
+          progress.xp += xpGained;
+        }
 
       // Award badge if topic/difficulty fully mastered
       const allTopicChallenges = getAllChallengesByTopicAndDifficulty(ch.topic, ch.difficulty);

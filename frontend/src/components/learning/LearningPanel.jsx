@@ -211,6 +211,7 @@ export default function LearningPanel({ user, onLogout }) {
         body: JSON.stringify({
           username,
           challengeId: challenge.id,
+          challengeTitle: challenge.title,
           difficulty,
           language,
           passed: true,
