@@ -47,6 +47,9 @@ function normalizeLanguage(lang = "python") {
   const m = String(lang).toLowerCase();
   if (["py", "python"].includes(m)) return "python";
   if (m === "java") return "java";
+  if (["js", "javascript"].includes(m)) return "javascript";
+  if (["cpp", "c++"].includes(m)) return "cpp";
+  if (m === "c") return "c";
   return "python";
 }
 
@@ -314,6 +317,143 @@ ${callLines}
   return JSON.parse(out.trim());
 }
 
+async function runJavaScript(functionName, userCode, testCases) {
+  const { VM } = require("vm2");
+  const vm = new VM({ timeout: 3000, sandbox: {} });
+
+  const results = [];
+  let allPassed = true;
+
+  for (let i = 0; i < testCases.length; i++) {
+    const tc = testCases[i];
+    try {
+      const argsStr = (tc.args || []).map((a) => JSON.stringify(a)).join(", ");
+      const fullCode = `
+        ${userCode};
+        (function() {
+          return ${functionName}(${argsStr});
+        })();
+      `;
+      const output = vm.run(fullCode);
+      const passed = JSON.stringify(output) === JSON.stringify(tc.expected);
+      if (!passed) allPassed = false;
+      results.push({
+        case: i + 1,
+        args: tc.args,
+        expected: tc.expected,
+        output,
+        passed,
+        error: null,
+        description: tc.description || "",
+      });
+    } catch (err) {
+      allPassed = false;
+      results.push({
+        case: i + 1,
+        args: tc.args,
+        expected: tc.expected,
+        output: null,
+        passed: false,
+        error: err.message,
+        description: tc.description || "",
+      });
+    }
+  }
+
+  return { results, allPassed };
+}
+
+async function runC(functionName, userCode, testCases, isCpp = false) {
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), isCpp ? "learncpp-" : "learnc-"));
+  const ext = isCpp ? ".cpp" : ".c";
+  const codePath = path.join(dir, `solution${ext}`);
+  const outPath = path.join(dir, process.platform === "win32" ? "solution.exe" : "solution");
+
+  const testCode = testCases.map((tc, idx) => {
+    const argsStr = (tc.args || []).map((a) => {
+      if (typeof a === "string") return `"${a.replace(/"/g, '\\"')}"`;
+      if (Array.isArray(a)) return `{${a.join(", ")}}`;
+      return String(a);
+    }).join(", ");
+    return `
+    {
+      int passed = 0;
+      // Test case ${idx + 1}
+      printf("{\\"case\\": %d, ", ${idx + 1});
+      // Run test (simplified - assumes numeric return)
+      auto result = ${functionName}(${argsStr});
+      auto expected = ${JSON.stringify(tc.expected)};
+      passed = (result == expected) ? 1 : 0;
+      if (!passed) allPassed = 0;
+      printf("\\"passed\\": %s, \\"description\\": \\"%s\\"},", passed ? "true" : "false", "${(tc.description || "").replace(/"/g, '\\"')}");
+    }`;
+  }).join("\n");
+
+  const fullCode = isCpp ? `
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+using namespace std;
+
+${userCode}
+
+int main() {
+  int allPassed = 1;
+  printf("{\\"results\\": [");
+  ${testCode}
+  printf("], \\"allPassed\\": %s}", allPassed ? "true" : "false");
+  return 0;
+}
+` : `
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+${userCode}
+
+int main() {
+  int allPassed = 1;
+  printf("{\\"results\\": [");
+  ${testCode}
+  printf("], \\"allPassed\\": %s}", allPassed ? "true" : "false");
+  return 0;
+}
+`;
+
+  try {
+    await fs.promises.writeFile(codePath, fullCode, "utf8");
+
+    const compiler = isCpp ? "g++" : "gcc";
+    
+    await new Promise((res, rej) => {
+      const p = spawn(compiler, [codePath, "-o", outPath], { cwd: dir });
+      let err = "";
+      p.stderr.on("data", (d) => (err += d.toString()));
+      p.on("close", (c) => (c === 0 ? res() : rej(new Error(err || `${compiler} compilation failed`))));
+    });
+
+    const out = await new Promise((res, rej) => {
+      const p = spawn(outPath, [], { cwd: dir });
+      let o = "", e = "";
+      p.stdout.on("data", (d) => (o += d.toString()));
+      p.stderr.on("data", (d) => (e += d.toString()));
+      p.on("close", (c) => (c === 0 ? res(o) : rej(new Error(e || "execution failed"))));
+    });
+
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {}
+
+    return JSON.parse(out.trim().replace(/,\s*\]/, "]"));
+  } catch (error) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {}
+    throw error;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // POST /ai/generate-challenge
 // ─────────────────────────────────────────────────────────────
@@ -395,6 +535,9 @@ router.post("/generate-challenge", async (req, res) => {
     const hints = {
       python: "Use Python 3. Provide a function definition only (no input()).",
       java: "Use Java 17. Provide public class Solution with a static method; no Scanner/System.in.",
+      javascript: "Use modern JavaScript (ES6+). Provide a function declaration only (no console.log or require).",
+      cpp: "Use C++17. Provide a function definition only (no main() or cin/cout). Include necessary headers in solution.",
+      c: "Use C99. Provide a function definition only (no main() or scanf/printf). Include necessary headers in solution.",
     };
 
     const blacklist = Array.isArray(excludeIds) && excludeIds.length
@@ -652,9 +795,60 @@ router.post("/run-tests", async (req, res) => {
       }
     }
 
+    if (lang === "javascript") {
+      try {
+        const result = await runJavaScript(functionName, code, testCases);
+        console.log(`[run-tests] Success - Passed: ${result.allPassed}`);
+        return res.json({ success: true, ...result });
+      } catch (jsError) {
+        console.error("[run-tests] JavaScript execution error:", jsError.message);
+        return res.status(500).json({ 
+          success: false, 
+          message: `JavaScript execution failed: ${jsError.message}`,
+          error: jsError.message,
+          results: [],
+          allPassed: false
+        });
+      }
+    }
+
+    if (lang === "cpp") {
+      try {
+        const result = await runC(functionName, code, testCases, true);
+        console.log(`[run-tests] Success - Passed: ${result.allPassed}`);
+        return res.json({ success: true, ...result });
+      } catch (cppError) {
+        console.error("[run-tests] C++ execution error:", cppError.message);
+        return res.status(500).json({ 
+          success: false, 
+          message: `C++ execution failed: ${cppError.message}`,
+          error: cppError.message,
+          results: [],
+          allPassed: false
+        });
+      }
+    }
+
+    if (lang === "c") {
+      try {
+        const result = await runC(functionName, code, testCases, false);
+        console.log(`[run-tests] Success - Passed: ${result.allPassed}`);
+        return res.json({ success: true, ...result });
+      } catch (cError) {
+        console.error("[run-tests] C execution error:", cError.message);
+        return res.status(500).json({ 
+          success: false, 
+          message: `C execution failed: ${cError.message}`,
+          error: cError.message,
+          results: [],
+          allPassed: false
+        });
+      }
+    }
+
     return res.status(400).json({ 
       success: false, 
-      message: `Unsupported language: ${lang}. Only 'python' and 'java' are supported.` 
+      message: `Unsupported language: ${lang}. Supported languages: python, java, javascript, c, cpp.` 
     });
   } catch (err) {
     console.error("❌ /ai/run-tests unexpected error:", err);

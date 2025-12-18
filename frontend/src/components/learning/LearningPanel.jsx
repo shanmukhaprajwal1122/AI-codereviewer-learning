@@ -8,6 +8,9 @@ import prism from "prismjs";
 import "prismjs/themes/prism-tomorrow.css";
 import "prismjs/components/prism-python";
 import "prismjs/components/prism-java";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-c";
+import "prismjs/components/prism-cpp";
 import Sidebar from "../patterns/Sidebar";
 
 function getInitials(name = "") {
@@ -21,6 +24,10 @@ const API =
 
 const LANG_OPTIONS = [
   { value: "python", label: "Python", prism: "python", icon: "🐍" },
+  { value: "java", label: "Java", prism: "java", icon: "☕" },
+  { value: "javascript", label: "JavaScript", prism: "javascript", icon: "🟨" },
+  { value: "cpp", label: "C++", prism: "cpp", icon: "⚙️" },
+  { value: "c", label: "C", prism: "c", icon: "🔧" },
 ];
 
 const TOPIC_ICONS = {
@@ -446,24 +453,22 @@ export default function LearningPanel({ user, onLogout }) {
                 </select>
               </div>
 
-              {/* Language Selector - Hidden since only Python */}
-              {LANG_OPTIONS.length > 1 && (
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    <CodeIcon />
-                    Language
-                  </label>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="px-5 py-3 rounded-xl bg-slate-900/80 border border-white/10 hover:border-purple-400/30 focus:border-purple-400/50 focus:outline-none transition-all text-sm font-medium backdrop-blur-sm shadow-lg cursor-pointer"
-                  >
-                    {LANG_OPTIONS.map((l) => (
-                      <option key={l.value} value={l.value}>{l.icon} {l.label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {/* Language Selector */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  <CodeIcon />
+                  Language
+                </label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="px-5 py-3 rounded-xl bg-slate-900/80 border border-white/10 hover:border-purple-400/30 focus:border-purple-400/50 focus:outline-none transition-all text-sm font-medium backdrop-blur-sm shadow-lg cursor-pointer"
+                >
+                  {LANG_OPTIONS.map((l) => (
+                    <option key={l.value} value={l.value}>{l.icon} {l.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Action Buttons */}
