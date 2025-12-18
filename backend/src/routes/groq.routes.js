@@ -231,7 +231,19 @@ async function runJava(functionName, userCode, testCases) {
   const solPath = path.join(dir, "Solution.java");
   const runPath = path.join(dir, "Runner.java");
 
-  await fs.promises.writeFile(solPath, userCode, "utf8");
+  let finalCode = userCode.trim();
+  // If it doesn't look like a class definition, wrap it.
+  // Basic heuristic: check if it contains "class Solution"
+  if (!finalCode.includes("class Solution")) {
+    // If it has imports, we should ideally move them, but for now let's assume simple wrapping or that users provide class
+    // To be safer, let's see if there are imports
+    const lines = finalCode.split("\n");
+    const imports = lines.filter(l => l.trim().startsWith("import "));
+    const other = lines.filter(l => !l.trim().startsWith("import "));
+    finalCode = `${imports.join("\n")}\npublic class Solution {\n${other.join("\n")}\n}`;
+  }
+
+  await fs.promises.writeFile(solPath, finalCode, "utf8");
 
   const callLines = testCases
     .map((tc, idx) => {
@@ -241,7 +253,7 @@ async function runJava(functionName, userCode, testCases) {
       const descEscaped = (tc.description || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       return `
     try {
-      var out = Solution.${tc.functionName || functionName}(${argList});
+      var out = new Solution().${tc.functionName || functionName}(${argList});
       boolean ok = java.util.Objects.equals(out, ${expected});
       if (!first) results.append(",");
       first=false;
@@ -632,6 +644,7 @@ Requirements:
 - Topic: ${topic || "General"}
 - Difficulty: ${difficulty || "easy"}
 - Language: ${lang}
+- Language-specific rules: ${hints[lang] || ""}
 - For "hard" difficulty: Problems should involve complex logic like dynamic programming, graph algorithms, or advanced data structures. Test cases should include edge cases.
 - Test cases: 5-8
 - Return ONLY JSON. NO markdown. NO prose.`;
