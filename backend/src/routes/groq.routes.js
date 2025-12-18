@@ -38,7 +38,7 @@ try {
   openai = null;
 }
 
-const MODEL = process.env.OPENAI_MODEL || "openai/gpt-oss-120b";
+const MODEL = process.env.OPENAI_MODEL || "llama-3.1-8b-instant";
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -616,44 +616,42 @@ router.post("/generate-challenge", async (req, res) => {
       ? `Avoid repeating any challenge with these ids: ${excludeIds.join(", ")}.`
       : "Do not repeat recent challenges from this session.";
 
-    const prompt = `Generate ONE ${lang.toUpperCase()} coding challenge as STRICT JSON:
+    const prompt = `Generate ONE ${lang.toUpperCase()} coding challenge.
+Output MUST be a minified JSON object with:
 {
-  "title": "Challenge title",
-  "prompt": "Clear description with a tiny example",
+  "title": "Short title",
+  "prompt": "Task description and example",
   "language": "${lang}",
-  "functionName": "functionNameOnly",
-  "signature": "language-appropriate function signature only",
-  "starterCode": "starter code with proper indentation",
-  "solution": "full correct reference solution with proper indentation and best practices",
-  "testCases": [
-    {"args": [inputs...], "expected": output, "description": "short case desc"}
-  ]
+  "functionName": "camelCaseName",
+  "signature": "Function signature",
+  "starterCode": "Initial code template",
+  "solution": "Complete correct code",
+  "testCases": [{"args": [], "expected": null, "description": ""}]
 }
-Rules:
-- Topic: ${topic || "General Programming"}
+Requirements:
+- Topic: ${topic || "General"}
 - Difficulty: ${difficulty || "easy"}
-- Provide 4–6 testCases incl. an edge case.
-- ${hints[lang]}
-- The solution must pass all testCases.
-- ${blacklist}
-- IMPORTANT: Use 4 spaces for indentation. Ensure the code is clean and readable.
-- IMPORTANT: Return ONLY minified JSON (no prose, no markdown, no fences).`;
+- Language: ${lang}
+- Test cases: 4-6
+- Return ONLY JSON.`;
 
     console.log("[generate-challenge] Calling AI API...");
 
     // Call OpenAI/Groq Chat API with error handling
     let completion;
-    try {
-      completion = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-          { role: "system", content: "Return a valid, minified JSON object and nothing else." },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 1500,
-      });
-    } catch (apiError) {
+      try {
+        completion = await openai.chat.completions.create({
+          model: MODEL,
+          messages: [
+            { role: "system", content: "Return a valid JSON object. No prose. No markdown fences." },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.6,
+          max_tokens: 1024,
+          response_format: { type: "json_object" }
+        });
+      } catch (apiError) {
+
       console.error("[generate-challenge] API call failed:", apiError.message);
       // Fallback to local challenge on API error
       console.log("[generate-challenge] Attempting local fallback after API failure");

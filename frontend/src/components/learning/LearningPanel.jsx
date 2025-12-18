@@ -167,12 +167,16 @@ export default function LearningPanel({ user, onLogout, onSelectNav }) {
     })();
   }, [username]);
 
-  async function fetchChallengeNoRepeat(attempts = 5) {
+  const [loadingMsg, setLoadingMsg] = useState("Preparing...");
+
+  async function fetchChallengeNoRepeat(attempts = 3) {
     setLoading(true); setFeedback(""); setAwardMsg(""); setResults([]); setStatus("idle");
+    setLoadingMsg("Summoning AI mentor...");
     const excludeIds = [...seen];
 
     for (let i = 0; i < attempts; i++) {
       try {
+        if (i > 0) setLoadingMsg(`Retrying... (Attempt ${i + 1})`);
         const res = await fetch(`${API}/ai/generate-challenge`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -476,16 +480,17 @@ export default function LearningPanel({ user, onLogout, onSelectNav }) {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-3 flex-wrap">
-              <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => fetchChallengeNoRepeat()}
-                disabled={loading}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg hover:shadow-purple-500/50 text-sm font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-purple-400/20"
-              >
-                <RefreshIcon spinning={loading} />
-                {loading ? "Loading..." : "New Challenge"}
-              </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => fetchChallengeNoRepeat()}
+                  disabled={loading}
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg hover:shadow-purple-500/50 text-sm font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed border border-purple-400/20"
+                >
+                  <RefreshIcon spinning={loading} />
+                  {loading ? loadingMsg : "New Challenge"}
+                </motion.button>
+
 
               <motion.button
                 whileHover={{ scale: 1.05, y: -2 }}
