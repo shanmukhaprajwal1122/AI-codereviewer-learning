@@ -378,108 +378,150 @@ async function runJavaScript(functionName, userCode, testCases) {
   return { results, allPassed };
 }
 
-async function runC(functionName, userCode, testCases, isCpp = false) {
-  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), isCpp ? "learncpp-" : "learnc-"));
-  const ext = isCpp ? ".cpp" : ".c";
-  const codePath = path.join(dir, `solution${ext}`);
-  const outPath = path.join(dir, process.platform === "win32" ? "solution.exe" : "solution");
+// Piston API for online C/C++ execution
+const PISTON_API = "https://emkc.org/api/v2/piston";
 
-  const testCode = testCases.map((tc, idx) => {
+async function runCOnline(functionName, userCode, testCases, isCpp = false) {
+  const language = isCpp ? "c++" : "c";
+  const version = isCpp ? "10.2.0" : "10.2.0";
+  
+  const results = [];
+  let allPassed = true;
+
+  for (let i = 0; i < testCases.length; i++) {
+    const tc = testCases[i];
     const argsStr = (tc.args || []).map((a) => {
       if (typeof a === "string") return `"${a.replace(/"/g, '\\"')}"`;
       if (Array.isArray(a)) return `{${a.join(", ")}}`;
       return String(a);
     }).join(", ");
-    
-    // For C/C++, we'll use a slightly different approach to avoid 'auto' in pure C
-    // and handle basic types. We'll assume the function returns a type compatible with the expected value.
-    const resultVar = `result_${idx}`;
-    const expectedVar = `expected_${idx}`;
-    
-    return `
-    {
-      // Test case ${idx + 1}
-      printf("{\\"case\\": %d, ", ${idx + 1});
-      
-      // We use C++ style for both if possible, or stick to a common subset
-      // If pure C, we can't use 'auto', so we'll try to infer or use a generic comparison
-      // For now, let's assume we can use a basic comparison for numeric/bool types
-      
-      double result = (double)${functionName}(${argsStr});
-      double expected = (double)${JSON.stringify(tc.expected)};
-      int passed = (result == expected) ? 1 : 0;
-      
-      if (!passed) allPassed = 0;
-      printf("\\"passed\\": %s, \\"description\\": \\"%s\\"},", passed ? "true" : "false", "${(tc.description || "").replace(/"/g, '\\"')}");
-    }`;
-  }).join("\n");
 
-  const fullCode = isCpp ? `
+    // Build test code that prints the result
+    const fullCode = isCpp ? `
 #include <iostream>
 #include <vector>
 #include <string>
 #include <algorithm>
-#include <cstdio>
+#include <cmath>
 using namespace std;
 
 ${userCode}
 
 int main() {
-  int allPassed = 1;
-  printf("{\\"results\\": [");
-  ${testCode}
-  printf("], \\"allPassed\\": %s}", allPassed ? "true" : "false");
+  auto result = ${functionName}(${argsStr});
+  cout << result << endl;
   return 0;
 }
 ` : `
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 ${userCode}
 
 int main() {
-  int allPassed = 1;
-  printf("{\\"results\\": [");
-  ${testCode}
-  printf("], \\"allPassed\\": %s}", allPassed ? "true" : "false");
+  printf("%d\\n", ${functionName}(${argsStr}));
   return 0;
 }
 `;
 
-  try {
-    await fs.promises.writeFile(codePath, fullCode, "utf8");
-
-    const compiler = isCpp ? "g++" : "gcc";
-    
-    await new Promise((res, rej) => {
-      const p = spawn(compiler, [codePath, "-o", outPath], { cwd: dir });
-      let err = "";
-      p.stderr.on("data", (d) => (err += d.toString()));
-      p.on("error", (e) => rej(new Error(`Compiler '${compiler}' not found. Please ensure it is installed and in PATH. (${e.message})`)));
-      p.on("close", (c) => (c === 0 ? res() : rej(new Error(err || `${compiler} compilation failed`))));
-    });
-
-    const out = await new Promise((res, rej) => {
-      const p = spawn(outPath, [], { cwd: dir });
-      let o = "", e = "";
-      p.stdout.on("data", (d) => (o += d.toString()));
-      p.stderr.on("data", (d) => (e += d.toString()));
-      p.on("error", (err) => rej(new Error(`Failed to execute compiled binary: ${err.message}`)));
-      p.on("close", (c) => (c === 0 ? res(o) : rej(new Error(e || "execution failed"))));
-    });
-
     try {
-      fs.rmSync(dir, { recursive: true, force: true });
-    } catch {}
+      // Submit to Piston API
+      const submitRes = await fetch(`${PISTON_API}/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          language: language,
+          version: version,
+          files: [{ name: isCpp ? "main.cpp" : "main.c", content: fullCode }],
+          stdin: "",
+          compile_timeout: 10000,
+          run_timeout: 5000
+        })
+      });
 
-    return JSON.parse(out.trim().replace(/,\s*\]/, "]"));
-  } catch (error) {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true });
-    } catch {}
-    throw error;
+      if (!submitRes.ok) {
+        const errorText = await submitRes.text();
+        throw new Error(`Piston API error: ${submitRes.status} - ${errorText}`);
+      }
+
+      const result = await submitRes.json();
+      
+      // Check for compilation errors
+      if (result.compile && result.compile.code !== 0) {
+        allPassed = false;
+        results.push({
+          case: i + 1,
+          args: tc.args,
+          expected: tc.expected,
+          output: null,
+          passed: false,
+          error: `Compilation error: ${result.compile.stderr || result.compile.output || 'Unknown error'}`,
+          description: tc.description || ""
+        });
+        continue;
+      }
+
+      // Check for runtime errors
+      if (result.run && result.run.code !== 0) {
+        allPassed = false;
+        results.push({
+          case: i + 1,
+          args: tc.args,
+          expected: tc.expected,
+          output: null,
+          passed: false,
+          error: `Runtime error: ${result.run.stderr || result.run.output || 'Unknown error'}`,
+          description: tc.description || ""
+        });
+        continue;
+      }
+
+      // Parse output
+      const stdout = (result.run?.stdout || result.run?.output || "").trim();
+      let output;
+      
+      // Try to parse as number first
+      if (/^-?\d+$/.test(stdout)) {
+        output = parseInt(stdout, 10);
+      } else if (/^-?\d+\.?\d*$/.test(stdout)) {
+        output = parseFloat(stdout);
+      } else if (stdout === "true" || stdout === "1") {
+        output = typeof tc.expected === 'boolean' ? true : (stdout === "1" ? 1 : stdout);
+      } else if (stdout === "false" || stdout === "0") {
+        output = typeof tc.expected === 'boolean' ? false : (stdout === "0" ? 0 : stdout);
+      } else {
+        output = stdout;
+      }
+
+      const passed = JSON.stringify(output) === JSON.stringify(tc.expected);
+      if (!passed) allPassed = false;
+
+      results.push({
+        case: i + 1,
+        args: tc.args,
+        expected: tc.expected,
+        output,
+        passed,
+        error: null,
+        description: tc.description || ""
+      });
+    } catch (err) {
+      allPassed = false;
+      results.push({
+        case: i + 1,
+        args: tc.args,
+        expected: tc.expected,
+        output: null,
+        passed: false,
+        error: err.message,
+        description: tc.description || ""
+      });
+    }
   }
+
+  return { results, allPassed };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -849,8 +891,9 @@ router.post("/run-tests", async (req, res) => {
 
     if (lang === "cpp") {
       try {
-        const result = await runC(functionName, code, testCases, true);
-        console.log(`[run-tests] Success - Passed: ${result.allPassed}`);
+        // Use online Judge0 API for C++ execution
+        const result = await runCOnline(functionName, code, testCases, true);
+        console.log(`[run-tests] C++ online - Passed: ${result.allPassed}`);
         return res.json({ success: true, ...result });
       } catch (cppError) {
         console.error("[run-tests] C++ execution error:", cppError.message);
@@ -866,8 +909,9 @@ router.post("/run-tests", async (req, res) => {
 
     if (lang === "c") {
       try {
-        const result = await runC(functionName, code, testCases, false);
-        console.log(`[run-tests] Success - Passed: ${result.allPassed}`);
+        // Use online Judge0 API for C execution
+        const result = await runCOnline(functionName, code, testCases, false);
+        console.log(`[run-tests] C online - Passed: ${result.allPassed}`);
         return res.json({ success: true, ...result });
       } catch (cError) {
         console.error("[run-tests] C execution error:", cError.message);
