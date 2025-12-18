@@ -233,15 +233,22 @@ async function runJava(functionName, userCode, testCases) {
 
   let finalCode = userCode.trim();
   // If it doesn't look like a class definition, wrap it.
-  // Basic heuristic: check if it contains "class Solution"
-  if (!finalCode.includes("class Solution")) {
-    // If it has imports, we should ideally move them, but for now let's assume simple wrapping or that users provide class
-    // To be safer, let's see if there are imports
+  // Strip comments to avoid matching "class Solution" inside comments
+  const codeWithoutComments = finalCode.replace(/\/\/.*|\/\*[\s\S]*?\*\//g, "");
+  
+  const hasClassDef = /\bclass\s+Solution\b/.test(codeWithoutComments);
+  
+  if (!hasClassDef) {
+    console.log("[runJava] No class Solution found, wrapping code...");
     const lines = finalCode.split("\n");
     const imports = lines.filter(l => l.trim().startsWith("import "));
     const other = lines.filter(l => !l.trim().startsWith("import "));
     finalCode = `${imports.join("\n")}\npublic class Solution {\n${other.join("\n")}\n}`;
+  } else {
+    console.log("[runJava] class Solution already present, skipping wrap.");
   }
+  
+  console.log("[runJava] Final code to compile:\n", finalCode);
 
   await fs.promises.writeFile(solPath, finalCode, "utf8");
 
@@ -636,8 +643,8 @@ Output MUST be a minified JSON object with:
   "language": "${lang}",
   "functionName": "camelCaseName",
   "signature": "Function signature",
-  "starterCode": "Initial code template",
-  "solution": "Complete correct code",
+  "starterCode": "Initial code template with ONLY the function signature and a simple return or empty body. DO NOT INCLUDE THE SOLUTION LOGIC HERE.",
+  "solution": "Complete correct code with the full implementation",
   "testCases": [{"args": [], "expected": null, "description": ""}]
 }
 Requirements:
@@ -645,6 +652,7 @@ Requirements:
 - Difficulty: ${difficulty || "easy"}
 - Language: ${lang}
 - Language-specific rules: ${hints[lang] || ""}
+- For Java: The solution MUST be wrapped in 'public class Solution'.
 - For "hard" difficulty: Problems should involve complex logic like dynamic programming, graph algorithms, or advanced data structures. Test cases should include edge cases.
 - Test cases: 5-8
 - Return ONLY JSON. NO markdown. NO prose.`;
