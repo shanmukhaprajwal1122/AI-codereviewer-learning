@@ -470,7 +470,8 @@ router.post("/generate-challenge", async (req, res) => {
       const local = pickRandomChallenge({ 
         topic: topic || undefined, 
         difficulty: difficulty || undefined,
-        excludeIds: excludeIds || []
+        excludeIds: excludeIds || [],
+        language: lang
       });
       
       if (!local) {
@@ -478,7 +479,8 @@ router.post("/generate-challenge", async (req, res) => {
         console.log("[generate-challenge] No exact match, trying without difficulty filter");
         const anyLocal = pickRandomChallenge({ 
           topic: topic || undefined,
-          excludeIds: excludeIds || []
+          excludeIds: excludeIds || [],
+          language: lang
         });
         
         if (!anyLocal) {
@@ -588,7 +590,8 @@ Rules:
       let local = pickRandomChallenge({ 
         topic: topic || undefined, 
         difficulty: difficulty || undefined,
-        excludeIds: excludeIds || []
+        excludeIds: excludeIds || [],
+        language: lang
       });
       
       // If no exact match, try without difficulty
@@ -596,7 +599,8 @@ Rules:
         console.log("[generate-challenge] No exact difficulty match, trying without difficulty filter");
         local = pickRandomChallenge({ 
           topic: topic || undefined,
-          excludeIds: excludeIds || []
+          excludeIds: excludeIds || [],
+          language: lang
         });
       }
       
@@ -653,12 +657,13 @@ Rules:
     ) {
       console.error("[generate-challenge] Invalid JSON from model:", content);
       
-      // Fallback to local challenge
-      const local = pickRandomChallenge({ 
-        topic: topic || undefined, 
-        difficulty: difficulty || undefined,
-        excludeIds: excludeIds || []
-      });
+        // Fallback to local challenge
+        const local = pickRandomChallenge({ 
+          topic: topic || undefined, 
+          difficulty: difficulty || undefined,
+          excludeIds: excludeIds || [],
+          language: lang
+        });
       
       if (!local) {
         return res.status(500).json({ 
@@ -711,7 +716,8 @@ Rules:
       const local = pickRandomChallenge({ 
         topic: topic || undefined, 
         difficulty: difficulty || undefined,
-        excludeIds: excludeIds || []
+        excludeIds: excludeIds || [],
+        language: lang
       });
       
       if (local) {
