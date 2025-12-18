@@ -130,7 +130,7 @@ const PlayIcon = ({ pulsing }) => (
   </svg>
 );
 
-export default function LearningPanel({ user, onLogout }) {
+export default function LearningPanel({ user, onLogout, onSelectNav }) {
   const [topic, setTopic] = useState("Loops");
   const [difficulty, setDifficulty] = useState("easy");
   const [language, setLanguage] = useState("python");
@@ -339,8 +339,10 @@ export default function LearningPanel({ user, onLogout }) {
         onClose={() => setSidebarOpen(false)}
         onSelect={(key) => {
           setSidebarOpen(false);
-          if (key === "mentor") window.dispatchEvent(new CustomEvent("route", { detail: "editor" }));
-          if (key === "quiz") window.dispatchEvent(new CustomEvent("route", { detail: "quiz" }));
+          if (key === "mentor") onSelectNav?.("editor");
+          else if (key === "quiz") onSelectNav?.("quiz");
+          else if (key === "learning") onSelectNav?.("learning");
+          else if (key === "dashboard") onSelectNav?.("dashboard");
         }}
         user={user}
         onLogout={onLogout}

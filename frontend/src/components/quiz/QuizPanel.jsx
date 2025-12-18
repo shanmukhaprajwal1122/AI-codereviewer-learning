@@ -211,8 +211,8 @@ export default function QuizPanel({ user, onLogout, onSelectNav }) {
           setSidebarOpen(false);
           if (key === "mentor") onSelectNav?.("editor");
           else if (key === "quiz") onSelectNav?.("quiz");
-          // else if (key === "vscode") onSelectNav?.("vscode");
-          else if (key === "learning" || key === "learning") onSelectNav?.("learning");
+          else if (key === "learning") onSelectNav?.("learning");
+          else if (key === "dashboard") onSelectNav?.("dashboard");
         }}
         user={user}
         onLogout={onLogout}
