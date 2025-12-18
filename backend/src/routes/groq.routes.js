@@ -620,7 +620,7 @@ router.post("/generate-challenge", async (req, res) => {
 Output MUST be a minified JSON object with:
 {
   "title": "Short title",
-  "prompt": "Task description and example",
+  "prompt": "Detailed task description and example",
   "language": "${lang}",
   "functionName": "camelCaseName",
   "signature": "Function signature",
@@ -632,8 +632,9 @@ Requirements:
 - Topic: ${topic || "General"}
 - Difficulty: ${difficulty || "easy"}
 - Language: ${lang}
-- Test cases: 4-6
-- Return ONLY JSON.`;
+- For "hard" difficulty: Problems should involve complex logic like dynamic programming, graph algorithms, or advanced data structures. Test cases should include edge cases.
+- Test cases: 5-8
+- Return ONLY JSON. NO markdown. NO prose.`;
 
     console.log("[generate-challenge] Calling AI API...");
 
@@ -641,13 +642,13 @@ Requirements:
     let completion;
       try {
         completion = await openai.chat.completions.create({
-          model: MODEL,
+          model: difficulty === "hard" ? "llama-3.3-70b-versatile" : MODEL,
           messages: [
-            { role: "system", content: "Return a valid JSON object. No prose. No markdown fences." },
+            { role: "system", content: "You are an expert programming challenge generator. Return a raw JSON object only. No preamble, no postamble, no code fences." },
             { role: "user", content: prompt },
           ],
-          temperature: 0.6,
-          max_tokens: 1024,
+          temperature: 0.5,
+          max_tokens: 4096,
           response_format: { type: "json_object" }
         });
       } catch (apiError) {
