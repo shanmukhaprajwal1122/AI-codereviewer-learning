@@ -30,8 +30,8 @@ This project demonstrates how to build a powerful AI-powered web application usi
 
 1. Clone this repository:
     ```bash
-    git clone https://github.com/Chando0185/genai_mern_project
-    cd genai_mern_project
+    git clone https://github.com/shanmukhaprajwal1122/AI-codereviewer-learning.git
+    cd AI-codereviewer-learning
     ```
 
 2. Install dependencies:
@@ -68,12 +68,10 @@ This project demonstrates how to build a powerful AI-powered web application usi
     - Backend: `http://localhost:3000/ai/get-review`
 
 ## Code & Resources:
-- GitHub Repo: [genai_mern_project](https://github.com/Chando0185/genai_mern_project)
+- GitHub Repo: [AI-codereviewer-learning](https://github.com/shanmukhaprajwal1122/AI-codereviewer-learning.git)
 - Groq API Docs: [Groq API Docs](https://groq.com/docs)
 - Node.js Docs: [Node.js Docs](https://nodejs.org/en)
 - Tailwind CSS Docs: [Tailwind CSS Docs](https://v3.tailwindcss.com/docs/guides/vite)
-
-
 
 ## Join the Community:
 - [LinkedIn](https://www.linkedin.com/in/rajath-os-769570260/)
@@ -82,8 +80,3 @@ This project demonstrates how to build a powerful AI-powered web application usi
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 > **Don't forget to Like, Comment, and Subscribe for more AI tutorials and innovations!**
-# AI-Code-Mentor
-# testing
-# AI-Code-Mentor
-# AI-CodeMentor-2-
-# AI-Code-Mentor
